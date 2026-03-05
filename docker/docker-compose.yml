@@ -1,0 +1,82 @@
+version: '3.9'
+
+services:
+  clawsandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clawsandbox_clawsandbox:latest
+    container_name: ClawSandbox
+    
+    # SECURITY LAYERS
+    security_opt:
+      # Security Layer 2: Drop all Linux capabilities
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    
+    # SECURITY LAYER 5: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # SECURITY LAYER 3: Read-only root filesystem
+    read_only_root_filesystem: true
+    
+    # Volumes for writable directories (tmpfs + named volumes)
+    volumes:
+      # tmpfs for temporary results
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 512M
+      # tmpfs for home directory
+      - type: tmpfs
+        target: /home/openclaw/.cache
+        tmpfs:
+          size: 256M
+      # Named volume for persistent results (optional)
+      - results_volume:/tmp/results
+      # Named volume for skills (if testing custom skills)
+      - skills_volume:/home/openclaw/skills
+
+    # SECURITY LAYER 6: Isolated network (no outbound by default)
+    network_mode: bridge
+    networks:
+      - clawsandbox-isolated
+    
+    # Disable network access by default
+    # Uncomment below if you need complete network isolation:
+    # networks: []
+    
+    # Environment variables
+    environment:
+      NODE_ENV: production
+      HOME: /home/openclaw
+      TMP: /tmp
+      TMPDIR: /tmp
+    
+    # Standard Docker security options
+    init: true
+    stdin_open: true
+    tty: true
+    
+    # Resources and memory constraints
+    shm_size: 256m
+
+networks:
+  clawsandbox-isolated:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.default_bridge: false
+
+volumes:
+  results_volume:
+    driver: local
+  skills_volume:
+    driver: local
